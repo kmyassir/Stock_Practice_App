@@ -21,6 +21,7 @@ import { sma, ema, macd, parabolicSar, efi, type PsarPoint } from "../lib/indica
 import MaSettingsPanel from "./MaSettingsPanel";
 import MacdSettingsPanel from "./MacdSettingsPanel";
 import BuyModal from "./BuyModal";
+import TradeResultModal from "./TradeResultModal";
 
 interface OhlcvPayload {
   dates: string[];
@@ -38,6 +39,7 @@ interface StockChartProps {
   macdConfig: MacdConfig;
   onMacdConfigChange: (config: MacdConfig) => void;
   toolbarSlot: HTMLElement | null;
+  onRequestNextStock: () => void;
 }
 
 interface PreparedData {
@@ -108,6 +110,27 @@ export interface Trade {
   maxGain: number;
 }
 
+export interface TradeResult {
+  outcome: "win" | "loss" | "neutral";
+  hitLabel: string;
+  hitPrice: number;
+  date: string;
+  pnl: number;
+  pnlPercent: number;
+}
+
+function buildTradeResult(
+  outcome: TradeResult["outcome"],
+  hitLabel: string,
+  hitPrice: number,
+  date: string,
+  trade: Trade
+): TradeResult {
+  const pnl = (hitPrice - trade.buyPrice) * trade.positionSize;
+  const pnlPercent = trade.capitalDeployed > 0 ? (pnl / trade.capitalDeployed) * 100 : 0;
+  return { outcome, hitLabel, hitPrice, date, pnl, pnlPercent };
+}
+
 // Every series on every chart must carry exactly one point per shared date
 // index (a real value or a whitespace placeholder), never a filtered-down
 // array — otherwise syncTimeScales' logical-range sync (which maps bar
@@ -145,11 +168,11 @@ function prepareData(raw: OhlcvPayload): PreparedData {
   };
 }
 
-// Picks a random reveal point with at least 30 candles of visible history and
+// Picks a random reveal point with at least 75 candles of visible history and
 // 90 candles of runway for a trade to play out. Falls back to whatever room
 // exists for tickers with thin history (younger listings).
 function pickStartIndex(n: number): number {
-  const min = 30;
+  const min = 75;
   const max = n - 91;
   if (max < min) return Math.min(min, n - 1);
   return min + Math.floor(Math.random() * (max - min + 1));
@@ -284,6 +307,7 @@ export default function StockChart({
   macdConfig,
   onMacdConfigChange,
   toolbarSlot,
+  onRequestNextStock,
 }: StockChartProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const macdContainerRef = useRef<HTMLDivElement>(null);
@@ -306,6 +330,7 @@ export default function StockChart({
   const [buyModalOpen, setBuyModalOpen] = useState(false);
   const [modalBuyPrice, setModalBuyPrice] = useState<number | null>(null);
   const [trade, setTrade] = useState<Trade | null>(null);
+  const [tradeResult, setTradeResult] = useState<TradeResult | null>(null);
 
   // Ref mirrors of state so imperative code (effects/handlers) can read the
   // latest value without forcing unrelated effects to re-run on every change.
@@ -374,7 +399,7 @@ export default function StockChart({
 
         const n = prepared.candles.length;
         const startIndex = pickStartIndex(n);
-        const windowStart = Math.max(0, startIndex - 30);
+        const windowStart = Math.max(0, startIndex - 75);
         windowStartRef.current = windowStart;
 
         const psarSlice: LineData<Time>[] = [];
@@ -493,6 +518,21 @@ export default function StockChart({
 
     setRevealedIndex(nextIndex);
     setCurrentEfi(prepared.efiValues[nextIndex] ?? null);
+
+    if (trade && !tradeResult) {
+      const candle = prepared.candles[nextIndex];
+      const date = prepared.dates[nextIndex];
+
+      if (candle.low <= trade.slPrice) {
+        // Check SL before target: if a single candle's range spans both
+        // levels, conservatively assume the stop was hit first.
+        setTradeResult(buildTradeResult("loss", "SL", trade.slPrice, date, trade));
+      } else if (candle.high >= trade.targetPrice) {
+        setTradeResult(buildTradeResult("win", "Target", trade.targetPrice, date, trade));
+      } else if (nextIndex === prepared.candles.length - 1) {
+        setTradeResult(buildTradeResult("neutral", "None", candle.close, date, trade));
+      }
+    }
   };
 
   const handleOpenBuyModal = () => {
@@ -533,38 +573,29 @@ export default function StockChart({
     setBuyModalOpen(false);
   };
 
-  const canRevealMore = revealedIndex !== null && revealedIndex < totalCandles - 1;
+  const canRevealMore = revealedIndex !== null && revealedIndex < totalCandles - 1 && tradeResult === null;
   const canBuy = trade === null && revealedIndex !== null;
 
+  const secondaryButton =
+    "rounded-full border border-purple-200 bg-white px-4 py-2 text-sm font-medium text-purple-700 shadow-sm transition-colors hover:bg-purple-50 disabled:cursor-not-allowed disabled:opacity-40 dark:border-purple-400/30 dark:bg-transparent dark:text-purple-300 dark:hover:bg-purple-400/10";
+  const primaryButton =
+    "rounded-full bg-purple-600 px-4 py-2 text-sm font-medium text-white shadow-sm transition-colors hover:bg-purple-700 disabled:cursor-not-allowed disabled:opacity-40 dark:bg-purple-500 dark:hover:bg-purple-400";
+
   return (
-    <div className="flex flex-col gap-2">
+    <div className="flex flex-col gap-3">
       {toolbarSlot &&
         createPortal(
           <>
-            <button
-              onClick={() => setMaSettingsOpen((open) => !open)}
-              className="rounded-full border border-black/10 px-4 py-2 text-sm font-medium transition-colors hover:bg-black/5 dark:border-white/20 dark:hover:bg-white/10"
-            >
+            <button onClick={() => setMaSettingsOpen((open) => !open)} className={secondaryButton}>
               MA settings
             </button>
-            <button
-              onClick={() => setMacdSettingsOpen((open) => !open)}
-              className="rounded-full border border-black/10 px-4 py-2 text-sm font-medium transition-colors hover:bg-black/5 dark:border-white/20 dark:hover:bg-white/10"
-            >
+            <button onClick={() => setMacdSettingsOpen((open) => !open)} className={secondaryButton}>
               MACD settings
             </button>
-            <button
-              onClick={handleOpenBuyModal}
-              disabled={!canBuy}
-              className="rounded-full border border-black/10 px-4 py-2 text-sm font-medium transition-colors hover:bg-black/5 disabled:opacity-50 dark:border-white/20 dark:hover:bg-white/10"
-            >
+            <button onClick={handleOpenBuyModal} disabled={!canBuy} className={primaryButton}>
               Buy
             </button>
-            <button
-              onClick={handleNextDay}
-              disabled={!canRevealMore}
-              className="rounded-full bg-foreground px-4 py-2 text-sm font-medium text-background transition-colors hover:bg-[#383838] disabled:opacity-50 dark:hover:bg-[#ccc]"
-            >
+            <button onClick={handleNextDay} disabled={!canRevealMore} className={primaryButton}>
               Next day
             </button>
           </>,
@@ -578,19 +609,26 @@ export default function StockChart({
           <BuyModal buyPrice={modalBuyPrice} onConfirm={handleConfirmBuy} onClose={() => setBuyModalOpen(false)} />,
           document.body
         )}
-      <div className="relative w-full h-[600px]">
-        <div ref={containerRef} className="h-full w-full" />
-        {currentEfi !== null && (
-          <div
-            className={`pointer-events-none absolute top-2 left-1/2 z-10 -translate-x-1/2 rounded-full px-3 py-1 text-xs font-semibold text-white ${
-              currentEfi >= 0 ? "bg-[#26a69a]" : "bg-[#ef5350]"
-            }`}
-          >
-            EFI {formatEfi(currentEfi)}
-          </div>
+      {tradeResult &&
+        createPortal(
+          <TradeResultModal result={tradeResult} onNextStock={onRequestNextStock} />,
+          document.body
         )}
+      <div className="flex flex-col gap-2 rounded-xl border border-purple-100 bg-white p-4 shadow-sm dark:border-white/5 dark:bg-[#241d2e]">
+        <div className="relative w-full h-[600px]">
+          <div ref={containerRef} className="h-full w-full" />
+          {currentEfi !== null && (
+            <div
+              className={`pointer-events-none absolute top-2 left-1/2 z-10 -translate-x-1/2 rounded-full px-3 py-1.5 text-xs font-semibold tracking-wide text-white shadow-sm ${
+                currentEfi >= 0 ? "bg-[#26a69a]" : "bg-[#ef5350]"
+              }`}
+            >
+              EFI {formatEfi(currentEfi)}
+            </div>
+          )}
+        </div>
+        <div ref={macdContainerRef} className="h-[180px] w-full" />
       </div>
-      <div ref={macdContainerRef} className="h-[180px] w-full" />
     </div>
   );
 }

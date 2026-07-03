@@ -98,18 +98,20 @@ export default function Home() {
     localStorage.setItem(MACD_CONFIG_STORAGE_KEY, JSON.stringify(macdConfig));
   }, [macdConfig]);
 
+  const handleNextStock = () => setTicker(randomTicker(tickers));
+
   return (
-    <div className="flex flex-col flex-1 items-center bg-zinc-50 font-sans dark:bg-black">
+    <div className="flex flex-col flex-1 items-center bg-[#F3F0FF] font-sans dark:bg-[#191320]">
       <main className="flex w-full max-w-7xl flex-col gap-4 py-16 px-6">
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <h1 className="text-xl font-semibold text-black dark:text-zinc-50">
+          <h1 className="text-xl font-semibold text-purple-950 dark:text-purple-50">
             {ticker ?? "Loading..."}
           </h1>
           <div className="flex flex-wrap items-center gap-2">
             <button
-              onClick={() => setTicker(randomTicker(tickers))}
+              onClick={handleNextStock}
               disabled={tickers.length === 0}
-              className="rounded-full bg-foreground px-4 py-2 text-sm font-medium text-background transition-colors hover:bg-[#383838] disabled:opacity-50 dark:hover:bg-[#ccc]"
+              className="rounded-full border border-purple-200 bg-white px-4 py-2 text-sm font-medium text-purple-700 shadow-sm transition-colors hover:bg-purple-50 disabled:cursor-not-allowed disabled:opacity-40 dark:border-purple-400/30 dark:bg-transparent dark:text-purple-300 dark:hover:bg-purple-400/10"
             >
               Next stock
             </button>
@@ -125,6 +127,7 @@ export default function Home() {
             macdConfig={macdConfig}
             onMacdConfigChange={setMacdConfig}
             toolbarSlot={toolbarSlot}
+            onRequestNextStock={handleNextStock}
           />
         )}
       </main>
