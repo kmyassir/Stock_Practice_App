@@ -1,7 +1,15 @@
 "use client";
 
 import { useEffect, useRef } from "react";
-import { createChart, CandlestickSeries, type CandlestickData, type Time } from "lightweight-charts";
+import {
+  createChart,
+  CandlestickSeries,
+  LineSeries,
+  type CandlestickData,
+  type LineData,
+  type Time,
+} from "lightweight-charts";
+import { sma, ema } from "../lib/indicators";
 
 interface OhlcvPayload {
   dates: string[];
@@ -23,6 +31,8 @@ export default function StockChart() {
       height: 500,
     });
     const series = chart.addSeries(CandlestickSeries);
+    const smaSeries = chart.addSeries(LineSeries, { color: "blue", lineWidth: 1 });
+    const emaSeries = chart.addSeries(LineSeries, { color: "orange", lineWidth: 1 });
 
     fetch("/sample-stock.json")
       .then((res) => res.json())
@@ -35,6 +45,18 @@ export default function StockChart() {
           close: raw.close[i],
         }));
         series.setData(data);
+
+        const sma20 = sma(raw.close, 20);
+        const ema20 = ema(raw.close, 20);
+
+        const toLineData = (values: (number | null)[]): LineData<Time>[] =>
+          raw.dates
+            .map((date, i) => ({ time: date as Time, value: values[i] }))
+            .filter((point): point is LineData<Time> => point.value !== null);
+
+        smaSeries.setData(toLineData(sma20));
+        emaSeries.setData(toLineData(ema20));
+
         chart.timeScale().fitContent();
       });
 
