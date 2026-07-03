@@ -64,3 +64,80 @@ export function macd(
 
   return { macdLine, signalLine, histogram };
 }
+
+export interface PsarPoint {
+  value: number;
+  isUptrend: boolean;
+}
+
+export function parabolicSar(
+  highs: number[],
+  lows: number[],
+  afStart = 0.02,
+  afStep = 0.02,
+  afMax = 0.2
+): PsarPoint[] {
+  const n = highs.length;
+  const sar = new Array<number>(n).fill(0);
+  const trend = new Array<number>(n).fill(0); // 1 = uptrend, -1 = downtrend
+  const ep = new Array<number>(n).fill(0);
+  const af = new Array<number>(n).fill(0);
+
+  trend[0] = 1;
+  sar[0] = lows[0];
+  ep[0] = highs[0];
+  af[0] = afStart;
+
+  for (let i = 1; i < n; i++) {
+    const prevSar = sar[i - 1];
+    const prevEp = ep[i - 1];
+    const prevAf = af[i - 1];
+    const prevTrend = trend[i - 1];
+
+    let candidateSar = prevSar + prevAf * (prevEp - prevSar);
+
+    if (prevTrend === 1) {
+      const floor = i >= 2 ? Math.min(lows[i - 1], lows[i - 2]) : lows[i - 1];
+      candidateSar = Math.min(candidateSar, floor);
+
+      if (lows[i] < candidateSar) {
+        trend[i] = -1;
+        sar[i] = prevEp;
+        ep[i] = lows[i];
+        af[i] = afStart;
+      } else {
+        trend[i] = 1;
+        sar[i] = candidateSar;
+        if (highs[i] > prevEp) {
+          ep[i] = highs[i];
+          af[i] = Math.min(prevAf + afStep, afMax);
+        } else {
+          ep[i] = prevEp;
+          af[i] = prevAf;
+        }
+      }
+    } else {
+      const ceiling = i >= 2 ? Math.max(highs[i - 1], highs[i - 2]) : highs[i - 1];
+      candidateSar = Math.max(candidateSar, ceiling);
+
+      if (highs[i] > candidateSar) {
+        trend[i] = 1;
+        sar[i] = prevEp;
+        ep[i] = highs[i];
+        af[i] = afStart;
+      } else {
+        trend[i] = -1;
+        sar[i] = candidateSar;
+        if (lows[i] < prevEp) {
+          ep[i] = lows[i];
+          af[i] = Math.min(prevAf + afStep, afMax);
+        } else {
+          ep[i] = prevEp;
+          af[i] = prevAf;
+        }
+      }
+    }
+  }
+
+  return sar.map((value, i) => ({ value, isUptrend: trend[i] === 1 }));
+}

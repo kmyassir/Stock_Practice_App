@@ -3,6 +3,7 @@
 import { useEffect, useRef } from "react";
 import {
   createChart,
+  createSeriesMarkers,
   CandlestickSeries,
   LineSeries,
   HistogramSeries,
@@ -10,9 +11,10 @@ import {
   type LineData,
   type HistogramData,
   type IChartApi,
+  type SeriesMarker,
   type Time,
 } from "lightweight-charts";
-import { sma, ema, macd } from "../lib/indicators";
+import { sma, ema, macd, parabolicSar } from "../lib/indicators";
 
 interface OhlcvPayload {
   dates: string[];
@@ -86,6 +88,16 @@ export default function StockChart() {
 
         smaSeries.setData(toLineData(sma20));
         emaSeries.setData(toLineData(ema20));
+
+        const psar = parabolicSar(raw.high, raw.low);
+        const markers: SeriesMarker<Time>[] = raw.dates.map((date, i) => ({
+          time: date as Time,
+          position: psar[i].isUptrend ? "belowBar" : "aboveBar",
+          color: psar[i].isUptrend ? "#26a69a" : "#ef5350",
+          shape: "circle",
+          size: 0.5,
+        }));
+        createSeriesMarkers(series, markers);
 
         const { macdLine, signalLine, histogram } = macd(raw.close);
 
