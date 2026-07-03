@@ -7,17 +7,20 @@ import {
   CandlestickSeries,
   LineSeries,
   HistogramSeries,
+  LineStyle,
   type CandlestickData,
   type LineData,
   type HistogramData,
   type WhitespaceData,
   type IChartApi,
   type ISeriesApi,
+  type IPriceLine,
   type Time,
 } from "lightweight-charts";
 import { sma, ema, macd, parabolicSar, efi, type PsarPoint } from "../lib/indicators";
 import MaSettingsPanel from "./MaSettingsPanel";
 import MacdSettingsPanel from "./MacdSettingsPanel";
+import BuyModal from "./BuyModal";
 
 interface OhlcvPayload {
   dates: string[];
@@ -94,6 +97,16 @@ export const DEFAULT_MACD_CONFIG: MacdConfig = {
   histogramPositiveColor: "#26a69a",
   histogramNegativeColor: "#ef5350",
 };
+
+export interface Trade {
+  buyPrice: number;
+  slPrice: number;
+  targetPrice: number;
+  positionSize: number;
+  capitalDeployed: number;
+  maxLoss: number;
+  maxGain: number;
+}
 
 // Every series on every chart must carry exactly one point per shared date
 // index (a real value or a whitespace placeholder), never a filtered-down
@@ -283,12 +296,16 @@ export default function StockChart({
   const maSeriesRef = useRef<Map<string, ISeriesApi<"Line">>>(new Map());
   const maValuesRef = useRef<Record<string, (number | null)[]>>({});
   const macdValuesRef = useRef<MacdValues>({ macdLine: [], signalLine: [], histogram: [] });
+  const priceLinesRef = useRef<{ buy: IPriceLine; sl: IPriceLine; target: IPriceLine } | null>(null);
 
   const [revealedIndex, setRevealedIndex] = useState<number | null>(null);
   const [totalCandles, setTotalCandles] = useState(0);
   const [currentEfi, setCurrentEfi] = useState<number | null>(null);
   const [maSettingsOpen, setMaSettingsOpen] = useState(false);
   const [macdSettingsOpen, setMacdSettingsOpen] = useState(false);
+  const [buyModalOpen, setBuyModalOpen] = useState(false);
+  const [modalBuyPrice, setModalBuyPrice] = useState<number | null>(null);
+  const [trade, setTrade] = useState<Trade | null>(null);
 
   // Ref mirrors of state so imperative code (effects/handlers) can read the
   // latest value without forcing unrelated effects to re-run on every change.
@@ -405,6 +422,7 @@ export default function StockChart({
       maSeriesMap.clear();
       maValuesRef.current = {};
       macdValuesRef.current = { macdLine: [], signalLine: [], histogram: [] };
+      priceLinesRef.current = null;
     };
   }, [ticker]);
 
@@ -477,7 +495,46 @@ export default function StockChart({
     setCurrentEfi(prepared.efiValues[nextIndex] ?? null);
   };
 
+  const handleOpenBuyModal = () => {
+    const prepared = dataRef.current;
+    if (!prepared || revealedIndex === null) return;
+    setModalBuyPrice(prepared.candles[revealedIndex].close);
+    setBuyModalOpen(true);
+  };
+
+  const handleConfirmBuy = (newTrade: Trade) => {
+    const series = seriesRef.current;
+    if (!series) return;
+
+    const buy = series.candlestick.createPriceLine({
+      price: newTrade.buyPrice,
+      color: "#607d8b",
+      lineWidth: 2,
+      lineStyle: LineStyle.Solid,
+      title: "Buy",
+    });
+    const sl = series.candlestick.createPriceLine({
+      price: newTrade.slPrice,
+      color: "#ef5350",
+      lineWidth: 2,
+      lineStyle: LineStyle.Dashed,
+      title: "SL",
+    });
+    const target = series.candlestick.createPriceLine({
+      price: newTrade.targetPrice,
+      color: "#26a69a",
+      lineWidth: 2,
+      lineStyle: LineStyle.Dashed,
+      title: "Target",
+    });
+
+    priceLinesRef.current = { buy, sl, target };
+    setTrade(newTrade);
+    setBuyModalOpen(false);
+  };
+
   const canRevealMore = revealedIndex !== null && revealedIndex < totalCandles - 1;
+  const canBuy = trade === null && revealedIndex !== null;
 
   return (
     <div className="flex flex-col gap-2">
@@ -497,6 +554,13 @@ export default function StockChart({
               MACD settings
             </button>
             <button
+              onClick={handleOpenBuyModal}
+              disabled={!canBuy}
+              className="rounded-full border border-black/10 px-4 py-2 text-sm font-medium transition-colors hover:bg-black/5 disabled:opacity-50 dark:border-white/20 dark:hover:bg-white/10"
+            >
+              Buy
+            </button>
+            <button
               onClick={handleNextDay}
               disabled={!canRevealMore}
               className="rounded-full bg-foreground px-4 py-2 text-sm font-medium text-background transition-colors hover:bg-[#383838] disabled:opacity-50 dark:hover:bg-[#ccc]"
@@ -508,6 +572,12 @@ export default function StockChart({
         )}
       {maSettingsOpen && <MaSettingsPanel configs={maConfigs} onChange={onMaConfigsChange} />}
       {macdSettingsOpen && <MacdSettingsPanel config={macdConfig} onChange={onMacdConfigChange} />}
+      {buyModalOpen &&
+        modalBuyPrice !== null &&
+        createPortal(
+          <BuyModal buyPrice={modalBuyPrice} onConfirm={handleConfirmBuy} onClose={() => setBuyModalOpen(false)} />,
+          document.body
+        )}
       <div className="relative w-full h-[600px]">
         <div ref={containerRef} className="h-full w-full" />
         {currentEfi !== null && (
