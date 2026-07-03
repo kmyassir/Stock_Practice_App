@@ -24,8 +24,15 @@ def fetch_ohlcv(ticker: str) -> pd.DataFrame:
 
 def save_ohlcv(ticker: str, df: pd.DataFrame) -> None:
     OHLCV_DIR.mkdir(parents=True, exist_ok=True)
-    records = json.loads(df.reset_index().to_json(orient="records", date_format="iso"))
-    (OHLCV_DIR / f"{ticker}.json").write_text(json.dumps(records, indent=2))
+    payload = {
+        "dates": df.index.strftime("%Y-%m-%d").tolist(),
+        "open": df["Open"].round(2).tolist(),
+        "high": df["High"].round(2).tolist(),
+        "low": df["Low"].round(2).tolist(),
+        "close": df["Close"].round(2).tolist(),
+        "volume": df["Volume"].astype(int).tolist(),
+    }
+    (OHLCV_DIR / f"{ticker}.json").write_text(json.dumps(payload, separators=(",", ":")))
 
 
 def main() -> None:

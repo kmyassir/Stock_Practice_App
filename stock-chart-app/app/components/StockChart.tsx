@@ -3,13 +3,13 @@
 import { useEffect, useRef } from "react";
 import { createChart, CandlestickSeries, type CandlestickData, type Time } from "lightweight-charts";
 
-interface RawCandle {
-  Date: string;
-  Open: number;
-  High: number;
-  Low: number;
-  Close: number;
-  Volume: number;
+interface OhlcvPayload {
+  dates: string[];
+  open: number[];
+  high: number[];
+  low: number[];
+  close: number[];
+  volume: number[];
 }
 
 export default function StockChart() {
@@ -26,13 +26,13 @@ export default function StockChart() {
 
     fetch("/sample-stock.json")
       .then((res) => res.json())
-      .then((raw: RawCandle[]) => {
-        const data: CandlestickData<Time>[] = raw.map((candle) => ({
-          time: candle.Date.slice(0, 10) as Time,
-          open: candle.Open,
-          high: candle.High,
-          low: candle.Low,
-          close: candle.Close,
+      .then((raw: OhlcvPayload) => {
+        const data: CandlestickData<Time>[] = raw.dates.map((date, i) => ({
+          time: date as Time,
+          open: raw.open[i],
+          high: raw.high[i],
+          low: raw.low[i],
+          close: raw.close[i],
         }));
         series.setData(data);
         chart.timeScale().fitContent();

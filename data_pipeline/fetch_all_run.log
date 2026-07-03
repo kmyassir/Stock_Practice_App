@@ -1,29 +1,31 @@
+$BAJEL.NS: possibly delisted; no price data found  (period=5y)
 Fetching OHLCV for 1399 tickers...
 Processed 50/1399 tickers, 50 saved so far
 Processed 100/1399 tickers, 100 saved so far
-Processed 150/1399 tickers, 150 saved so far
-Processed 200/1399 tickers, 200 saved so far
-Processed 250/1399 tickers, 250 saved so far
-Processed 300/1399 tickers, 300 saved so far
-Processed 350/1399 tickers, 350 saved so far
-Processed 400/1399 tickers, 400 saved so far
-Processed 450/1399 tickers, 450 saved so far
-Processed 500/1399 tickers, 500 saved so far
-Processed 550/1399 tickers, 550 saved so far
-Processed 600/1399 tickers, 600 saved so far
-Processed 650/1399 tickers, 650 saved so far
-Processed 700/1399 tickers, 700 saved so far
-Processed 750/1399 tickers, 750 saved so far
-Processed 800/1399 tickers, 800 saved so far
-Processed 850/1399 tickers, 850 saved so far
-Processed 900/1399 tickers, 900 saved so far
-Processed 950/1399 tickers, 950 saved so far
-Processed 1000/1399 tickers, 1000 saved so far
-Processed 1050/1399 tickers, 1050 saved so far
-Processed 1100/1399 tickers, 1100 saved so far
-Processed 1150/1399 tickers, 1150 saved so far
-Processed 1200/1399 tickers, 1200 saved so far
-Processed 1250/1399 tickers, 1250 saved so far
-Processed 1300/1399 tickers, 1300 saved so far
-Processed 1350/1399 tickers, 1350 saved so far
-Done. Saved OHLCV for 1399/1399 tickers to C:\00 - My AI Projects\Stock Trading WebApp Practice\data_pipeline\ohlcv
+Skipping BAJEL.NS: no data returned
+Processed 150/1399 tickers, 149 saved so far
+Processed 200/1399 tickers, 199 saved so far
+Processed 250/1399 tickers, 249 saved so far
+Processed 300/1399 tickers, 299 saved so far
+Processed 350/1399 tickers, 349 saved so far
+Processed 400/1399 tickers, 399 saved so far
+Processed 450/1399 tickers, 449 saved so far
+Processed 500/1399 tickers, 499 saved so far
+Processed 550/1399 tickers, 549 saved so far
+Processed 600/1399 tickers, 599 saved so far
+Processed 650/1399 tickers, 649 saved so far
+Processed 700/1399 tickers, 699 saved so far
+Processed 750/1399 tickers, 749 saved so far
+Processed 800/1399 tickers, 799 saved so far
+Processed 850/1399 tickers, 849 saved so far
+Processed 900/1399 tickers, 899 saved so far
+Processed 950/1399 tickers, 949 saved so far
+Processed 1000/1399 tickers, 999 saved so far
+Processed 1050/1399 tickers, 1049 saved so far
+Processed 1100/1399 tickers, 1099 saved so far
+Processed 1150/1399 tickers, 1149 saved so far
+Processed 1200/1399 tickers, 1199 saved so far
+Processed 1250/1399 tickers, 1249 saved so far
+Processed 1300/1399 tickers, 1299 saved so far
+Processed 1350/1399 tickers, 1349 saved so far
+Done. Saved OHLCV for 1398/1399 tickers to C:\00 - My AI Projects\Stock Trading WebApp Practice\data_pipeline\ohlcv
