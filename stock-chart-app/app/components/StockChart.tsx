@@ -1,6 +1,7 @@
 "use client";
 
 import { useRef, useState, useEffect } from "react";
+import { createPortal } from "react-dom";
 import {
   createChart,
   CandlestickSeries,
@@ -33,6 +34,7 @@ interface StockChartProps {
   onMaConfigsChange: (configs: MaConfig[]) => void;
   macdConfig: MacdConfig;
   onMacdConfigChange: (config: MacdConfig) => void;
+  toolbarSlot: HTMLElement | null;
 }
 
 interface PreparedData {
@@ -268,6 +270,7 @@ export default function StockChart({
   onMaConfigsChange,
   macdConfig,
   onMacdConfigChange,
+  toolbarSlot,
 }: StockChartProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const macdContainerRef = useRef<HTMLDivElement>(null);
@@ -478,30 +481,34 @@ export default function StockChart({
 
   return (
     <div className="flex flex-col gap-2">
-      <div className="flex justify-end gap-2">
-        <button
-          onClick={() => setMaSettingsOpen((open) => !open)}
-          className="rounded-full border border-black/10 px-4 py-2 text-sm font-medium transition-colors hover:bg-black/5 dark:border-white/20 dark:hover:bg-white/10"
-        >
-          MA settings
-        </button>
-        <button
-          onClick={() => setMacdSettingsOpen((open) => !open)}
-          className="rounded-full border border-black/10 px-4 py-2 text-sm font-medium transition-colors hover:bg-black/5 dark:border-white/20 dark:hover:bg-white/10"
-        >
-          MACD settings
-        </button>
-        <button
-          onClick={handleNextDay}
-          disabled={!canRevealMore}
-          className="rounded-full bg-foreground px-4 py-2 text-sm font-medium text-background transition-colors hover:bg-[#383838] disabled:opacity-50 dark:hover:bg-[#ccc]"
-        >
-          Next day
-        </button>
-      </div>
+      {toolbarSlot &&
+        createPortal(
+          <>
+            <button
+              onClick={() => setMaSettingsOpen((open) => !open)}
+              className="rounded-full border border-black/10 px-4 py-2 text-sm font-medium transition-colors hover:bg-black/5 dark:border-white/20 dark:hover:bg-white/10"
+            >
+              MA settings
+            </button>
+            <button
+              onClick={() => setMacdSettingsOpen((open) => !open)}
+              className="rounded-full border border-black/10 px-4 py-2 text-sm font-medium transition-colors hover:bg-black/5 dark:border-white/20 dark:hover:bg-white/10"
+            >
+              MACD settings
+            </button>
+            <button
+              onClick={handleNextDay}
+              disabled={!canRevealMore}
+              className="rounded-full bg-foreground px-4 py-2 text-sm font-medium text-background transition-colors hover:bg-[#383838] disabled:opacity-50 dark:hover:bg-[#ccc]"
+            >
+              Next day
+            </button>
+          </>,
+          toolbarSlot
+        )}
       {maSettingsOpen && <MaSettingsPanel configs={maConfigs} onChange={onMaConfigsChange} />}
       {macdSettingsOpen && <MacdSettingsPanel config={macdConfig} onChange={onMacdConfigChange} />}
-      <div className="relative w-full h-[500px]">
+      <div className="relative w-full h-[600px]">
         <div ref={containerRef} className="h-full w-full" />
         {currentEfi !== null && (
           <div
@@ -513,7 +520,7 @@ export default function StockChart({
           </div>
         )}
       </div>
-      <div ref={macdContainerRef} className="h-[150px] w-full" />
+      <div ref={macdContainerRef} className="h-[180px] w-full" />
     </div>
   );
 }
