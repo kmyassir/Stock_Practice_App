@@ -65,6 +65,27 @@ export function macd(
   return { macdLine, signalLine, histogram };
 }
 
+export function efi(closes: number[], volumes: number[], period = 13): (number | null)[] {
+  const n = closes.length;
+  const rawForce: (number | null)[] = new Array(n).fill(null);
+  for (let i = 1; i < n; i++) {
+    rawForce[i] = (closes[i] - closes[i - 1]) * volumes[i];
+  }
+
+  const result: (number | null)[] = new Array(n).fill(null);
+  const firstValidIndex = rawForce.findIndex((v) => v !== null);
+
+  if (firstValidIndex !== -1) {
+    const values = rawForce.slice(firstValidIndex) as number[];
+    const emaOnValid = ema(values, period);
+    emaOnValid.forEach((v, i) => {
+      result[firstValidIndex + i] = v;
+    });
+  }
+
+  return result;
+}
+
 export interface PsarPoint {
   value: number;
   isUptrend: boolean;

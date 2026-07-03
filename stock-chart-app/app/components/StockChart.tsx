@@ -14,7 +14,7 @@ import {
   type SeriesMarker,
   type Time,
 } from "lightweight-charts";
-import { sma, ema, macd, parabolicSar } from "../lib/indicators";
+import { sma, ema, macd, parabolicSar, efi } from "../lib/indicators";
 
 interface OhlcvPayload {
   dates: string[];
@@ -25,28 +25,27 @@ interface OhlcvPayload {
   volume: number[];
 }
 
-function syncTimeScales(a: IChartApi, b: IChartApi) {
+function syncTimeScales(charts: IChartApi[]) {
   let syncing = false;
-  a.timeScale().subscribeVisibleLogicalRangeChange((range) => {
-    if (syncing || !range) return;
-    syncing = true;
-    b.timeScale().setVisibleLogicalRange(range);
-    syncing = false;
-  });
-  b.timeScale().subscribeVisibleLogicalRangeChange((range) => {
-    if (syncing || !range) return;
-    syncing = true;
-    a.timeScale().setVisibleLogicalRange(range);
-    syncing = false;
+  charts.forEach((chart, index) => {
+    chart.timeScale().subscribeVisibleLogicalRangeChange((range) => {
+      if (syncing || !range) return;
+      syncing = true;
+      charts.forEach((other, otherIndex) => {
+        if (otherIndex !== index) other.timeScale().setVisibleLogicalRange(range);
+      });
+      syncing = false;
+    });
   });
 }
 
 export default function StockChart() {
   const containerRef = useRef<HTMLDivElement>(null);
   const macdContainerRef = useRef<HTMLDivElement>(null);
+  const efiContainerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    if (!containerRef.current || !macdContainerRef.current) return;
+    if (!containerRef.current || !macdContainerRef.current || !efiContainerRef.current) return;
 
     const chart = createChart(containerRef.current, {
       width: containerRef.current.clientWidth,
@@ -62,9 +61,15 @@ export default function StockChart() {
     });
     const macdLineSeries = macdChart.addSeries(LineSeries, { color: "blue", lineWidth: 1 });
     const signalLineSeries = macdChart.addSeries(LineSeries, { color: "orange", lineWidth: 1 });
-    const histogramSeries = macdChart.addSeries(HistogramSeries, {});
+    const macdHistogramSeries = macdChart.addSeries(HistogramSeries, {});
 
-    syncTimeScales(chart, macdChart);
+    const efiChart = createChart(efiContainerRef.current, {
+      width: efiContainerRef.current.clientWidth,
+      height: 150,
+    });
+    const efiHistogramSeries = efiChart.addSeries(HistogramSeries, {});
+
+    syncTimeScales([chart, macdChart, efiChart]);
 
     fetch("/sample-stock.json")
       .then((res) => res.json())
@@ -86,6 +91,18 @@ export default function StockChart() {
             .map((date, i) => ({ time: date as Time, value: values[i] }))
             .filter((point): point is LineData<Time> => point.value !== null);
 
+        const toHistogramData = (values: (number | null)[]): HistogramData<Time>[] =>
+          raw.dates
+            .map((date, i) => ({
+              time: date as Time,
+              value: values[i],
+              color: (values[i] ?? 0) >= 0 ? "#26a69a" : "#ef5350",
+            }))
+            .filter(
+              (point): point is { time: Time; value: number; color: string } =>
+                point.value !== null
+            );
+
         smaSeries.setData(toLineData(sma20));
         emaSeries.setData(toLineData(ema20));
 
@@ -103,27 +120,20 @@ export default function StockChart() {
 
         macdLineSeries.setData(toLineData(macdLine));
         signalLineSeries.setData(toLineData(signalLine));
+        macdHistogramSeries.setData(toHistogramData(histogram));
 
-        const histogramData: HistogramData<Time>[] = raw.dates
-          .map((date, i) => ({
-            time: date as Time,
-            value: histogram[i],
-            color: (histogram[i] ?? 0) >= 0 ? "#26a69a" : "#ef5350",
-          }))
-          .filter(
-            (point): point is { time: Time; value: number; color: string } =>
-              point.value !== null
-          );
-
-        histogramSeries.setData(histogramData);
+        const efiValues = efi(raw.close, raw.volume);
+        efiHistogramSeries.setData(toHistogramData(efiValues));
 
         chart.timeScale().fitContent();
         macdChart.timeScale().fitContent();
+        efiChart.timeScale().fitContent();
       });
 
     return () => {
       chart.remove();
       macdChart.remove();
+      efiChart.remove();
     };
   }, []);
 
@@ -131,6 +141,7 @@ export default function StockChart() {
     <div className="flex flex-col gap-2">
       <div ref={containerRef} className="w-full" />
       <div ref={macdContainerRef} className="w-full" />
+      <div ref={efiContainerRef} className="w-full" />
     </div>
   );
 }
