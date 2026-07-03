@@ -3,7 +3,6 @@
 import { useEffect, useRef } from "react";
 import {
   createChart,
-  createSeriesMarkers,
   CandlestickSeries,
   LineSeries,
   HistogramSeries,
@@ -11,7 +10,6 @@ import {
   type LineData,
   type HistogramData,
   type IChartApi,
-  type SeriesMarker,
   type Time,
 } from "lightweight-charts";
 import { sma, ema, macd, parabolicSar, efi } from "../lib/indicators";
@@ -23,6 +21,10 @@ interface OhlcvPayload {
   low: number[];
   close: number[];
   volume: number[];
+}
+
+interface StockChartProps {
+  ticker: string;
 }
 
 function syncTimeScales(charts: IChartApi[]) {
@@ -39,7 +41,7 @@ function syncTimeScales(charts: IChartApi[]) {
   });
 }
 
-export default function StockChart() {
+export default function StockChart({ ticker }: StockChartProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const macdContainerRef = useRef<HTMLDivElement>(null);
   const efiContainerRef = useRef<HTMLDivElement>(null);
@@ -54,6 +56,13 @@ export default function StockChart() {
     const series = chart.addSeries(CandlestickSeries);
     const smaSeries = chart.addSeries(LineSeries, { color: "blue", lineWidth: 1 });
     const emaSeries = chart.addSeries(LineSeries, { color: "orange", lineWidth: 1 });
+    const psarSeries = chart.addSeries(LineSeries, {
+      lineVisible: false,
+      pointMarkersVisible: true,
+      pointMarkersRadius: 2,
+      lastValueVisible: false,
+      priceLineVisible: false,
+    });
 
     const macdChart = createChart(macdContainerRef.current, {
       width: macdContainerRef.current.clientWidth,
@@ -71,7 +80,7 @@ export default function StockChart() {
 
     syncTimeScales([chart, macdChart, efiChart]);
 
-    fetch("/sample-stock.json")
+    fetch(`/data/ohlcv/${ticker}.json`)
       .then((res) => res.json())
       .then((raw: OhlcvPayload) => {
         const data: CandlestickData<Time>[] = raw.dates.map((date, i) => ({
@@ -107,14 +116,12 @@ export default function StockChart() {
         emaSeries.setData(toLineData(ema20));
 
         const psar = parabolicSar(raw.high, raw.low);
-        const markers: SeriesMarker<Time>[] = raw.dates.map((date, i) => ({
+        const psarData: LineData<Time>[] = raw.dates.map((date, i) => ({
           time: date as Time,
-          position: psar[i].isUptrend ? "belowBar" : "aboveBar",
+          value: psar[i].value,
           color: psar[i].isUptrend ? "#26a69a" : "#ef5350",
-          shape: "circle",
-          size: 0.5,
         }));
-        createSeriesMarkers(series, markers);
+        psarSeries.setData(psarData);
 
         const { macdLine, signalLine, histogram } = macd(raw.close);
 
@@ -135,7 +142,7 @@ export default function StockChart() {
       macdChart.remove();
       efiChart.remove();
     };
-  }, []);
+  }, [ticker]);
 
   return (
     <div className="flex flex-col gap-2">

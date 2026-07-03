@@ -17,6 +17,9 @@
 /.next/
 /out/
 
+# generated from data_pipeline/ by scripts/prepare-data.js
+/public/data/
+
 # production
 /build
 
