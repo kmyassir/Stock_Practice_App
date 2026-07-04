@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Image from "next/image";
 import StockChart, {
   DEFAULT_MA_CONFIGS,
   DEFAULT_MACD_CONFIG,
@@ -103,10 +104,20 @@ export default function Home() {
   return (
     <div className="flex flex-col flex-1 items-center bg-[#F3F0FF] font-sans dark:bg-[#191320]">
       <main className="flex w-full max-w-7xl flex-col gap-4 py-16 px-6">
+        <div className="flex items-center gap-3">
+          <Image src="/logo.svg" alt="PractiQue logo" width={40} height={40} className="shrink-0" />
+          <div>
+            <h1 className="text-xl font-bold leading-tight text-purple-950 dark:text-purple-50">
+              PractiQue
+            </h1>
+            <p className="text-xs text-purple-500 dark:text-purple-300/70">Stock Practice tool</p>
+          </div>
+        </div>
+
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <h1 className="text-xl font-semibold text-purple-950 dark:text-purple-50">
+          <h2 className="text-xl font-semibold text-purple-950 dark:text-purple-50">
             {ticker ?? "Loading..."}
-          </h1>
+          </h2>
           <div className="flex flex-wrap items-center gap-2">
             <button
               onClick={handleNextStock}
