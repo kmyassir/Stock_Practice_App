@@ -5,7 +5,7 @@ import type { Trade } from "./StockChart";
 
 interface BuyModalProps {
   buyPrice: number;
-  onConfirm: (trade: Omit<Trade, "buyDate" | "buyIndex">) => void;
+  onConfirm: (trade: Omit<Trade, "buyDate">) => void;
   onClose: () => void;
 }
 

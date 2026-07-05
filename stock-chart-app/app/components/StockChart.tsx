@@ -103,7 +103,6 @@ export const DEFAULT_MACD_CONFIG: MacdConfig = {
 export interface Trade {
   buyPrice: number;
   buyDate: string;
-  buyIndex: number;
   slPrice: number;
   targetPrice: number;
   positionSize: number;
@@ -123,17 +122,20 @@ export interface TradeResult {
   pnlPercent: number;
 }
 
+const MS_PER_DAY = 1000 * 60 * 60 * 24;
+
 function buildTradeResult(
   outcome: TradeResult["outcome"],
   hitLabel: string,
   hitPrice: number,
   sellDate: string,
-  sellIndex: number,
   trade: Trade
 ): TradeResult {
   const pnl = (hitPrice - trade.buyPrice) * trade.positionSize;
   const pnlPercent = trade.capitalDeployed > 0 ? (pnl / trade.capitalDeployed) * 100 : 0;
-  const daysHeld = sellIndex - trade.buyIndex;
+  const daysHeld = Math.round(
+    (new Date(sellDate).getTime() - new Date(trade.buyDate).getTime()) / MS_PER_DAY
+  );
   return {
     outcome,
     hitLabel,
@@ -345,7 +347,6 @@ export default function StockChart({
   const [buyModalOpen, setBuyModalOpen] = useState(false);
   const [modalBuyPrice, setModalBuyPrice] = useState<number | null>(null);
   const [modalBuyDate, setModalBuyDate] = useState<string | null>(null);
-  const [modalBuyIndex, setModalBuyIndex] = useState<number | null>(null);
   const [trade, setTrade] = useState<Trade | null>(null);
   const [tradeResult, setTradeResult] = useState<TradeResult | null>(null);
 
@@ -543,11 +544,11 @@ export default function StockChart({
       if (candle.low <= trade.slPrice) {
         // Check SL before target: if a single candle's range spans both
         // levels, conservatively assume the stop was hit first.
-        setTradeResult(buildTradeResult("loss", "SL", trade.slPrice, date, nextIndex, trade));
+        setTradeResult(buildTradeResult("loss", "SL", trade.slPrice, date, trade));
       } else if (candle.high >= trade.targetPrice) {
-        setTradeResult(buildTradeResult("win", "Target", trade.targetPrice, date, nextIndex, trade));
+        setTradeResult(buildTradeResult("win", "Target", trade.targetPrice, date, trade));
       } else if (nextIndex === prepared.candles.length - 1) {
-        setTradeResult(buildTradeResult("neutral", "None", candle.close, date, nextIndex, trade));
+        setTradeResult(buildTradeResult("neutral", "None", candle.close, date, trade));
       }
     }
   };
@@ -557,13 +558,12 @@ export default function StockChart({
     if (!prepared || revealedIndex === null) return;
     setModalBuyPrice(prepared.candles[revealedIndex].close);
     setModalBuyDate(prepared.dates[revealedIndex]);
-    setModalBuyIndex(revealedIndex);
     setBuyModalOpen(true);
   };
 
-  const handleConfirmBuy = (newTrade: Omit<Trade, "buyDate" | "buyIndex">) => {
+  const handleConfirmBuy = (newTrade: Omit<Trade, "buyDate">) => {
     const series = seriesRef.current;
-    if (!series || modalBuyDate === null || modalBuyIndex === null) return;
+    if (!series || modalBuyDate === null) return;
 
     const buy = series.candlestick.createPriceLine({
       price: newTrade.buyPrice,
@@ -588,7 +588,7 @@ export default function StockChart({
     });
 
     priceLinesRef.current = { buy, sl, target };
-    setTrade({ ...newTrade, buyDate: modalBuyDate, buyIndex: modalBuyIndex });
+    setTrade({ ...newTrade, buyDate: modalBuyDate });
     setBuyModalOpen(false);
   };
 
