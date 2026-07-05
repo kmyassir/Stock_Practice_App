@@ -102,6 +102,8 @@ export const DEFAULT_MACD_CONFIG: MacdConfig = {
 
 export interface Trade {
   buyPrice: number;
+  buyDate: string;
+  buyIndex: number;
   slPrice: number;
   targetPrice: number;
   positionSize: number;
@@ -114,7 +116,9 @@ export interface TradeResult {
   outcome: "win" | "loss" | "neutral";
   hitLabel: string;
   hitPrice: number;
-  date: string;
+  buyDate: string;
+  sellDate: string;
+  daysHeld: number;
   pnl: number;
   pnlPercent: number;
 }
@@ -123,12 +127,23 @@ function buildTradeResult(
   outcome: TradeResult["outcome"],
   hitLabel: string,
   hitPrice: number,
-  date: string,
+  sellDate: string,
+  sellIndex: number,
   trade: Trade
 ): TradeResult {
   const pnl = (hitPrice - trade.buyPrice) * trade.positionSize;
   const pnlPercent = trade.capitalDeployed > 0 ? (pnl / trade.capitalDeployed) * 100 : 0;
-  return { outcome, hitLabel, hitPrice, date, pnl, pnlPercent };
+  const daysHeld = sellIndex - trade.buyIndex;
+  return {
+    outcome,
+    hitLabel,
+    hitPrice,
+    buyDate: trade.buyDate,
+    sellDate,
+    daysHeld,
+    pnl,
+    pnlPercent,
+  };
 }
 
 // Every series on every chart must carry exactly one point per shared date
@@ -329,6 +344,8 @@ export default function StockChart({
   const [macdSettingsOpen, setMacdSettingsOpen] = useState(false);
   const [buyModalOpen, setBuyModalOpen] = useState(false);
   const [modalBuyPrice, setModalBuyPrice] = useState<number | null>(null);
+  const [modalBuyDate, setModalBuyDate] = useState<string | null>(null);
+  const [modalBuyIndex, setModalBuyIndex] = useState<number | null>(null);
   const [trade, setTrade] = useState<Trade | null>(null);
   const [tradeResult, setTradeResult] = useState<TradeResult | null>(null);
 
@@ -526,11 +543,11 @@ export default function StockChart({
       if (candle.low <= trade.slPrice) {
         // Check SL before target: if a single candle's range spans both
         // levels, conservatively assume the stop was hit first.
-        setTradeResult(buildTradeResult("loss", "SL", trade.slPrice, date, trade));
+        setTradeResult(buildTradeResult("loss", "SL", trade.slPrice, date, nextIndex, trade));
       } else if (candle.high >= trade.targetPrice) {
-        setTradeResult(buildTradeResult("win", "Target", trade.targetPrice, date, trade));
+        setTradeResult(buildTradeResult("win", "Target", trade.targetPrice, date, nextIndex, trade));
       } else if (nextIndex === prepared.candles.length - 1) {
-        setTradeResult(buildTradeResult("neutral", "None", candle.close, date, trade));
+        setTradeResult(buildTradeResult("neutral", "None", candle.close, date, nextIndex, trade));
       }
     }
   };
@@ -539,12 +556,14 @@ export default function StockChart({
     const prepared = dataRef.current;
     if (!prepared || revealedIndex === null) return;
     setModalBuyPrice(prepared.candles[revealedIndex].close);
+    setModalBuyDate(prepared.dates[revealedIndex]);
+    setModalBuyIndex(revealedIndex);
     setBuyModalOpen(true);
   };
 
-  const handleConfirmBuy = (newTrade: Trade) => {
+  const handleConfirmBuy = (newTrade: Omit<Trade, "buyDate" | "buyIndex">) => {
     const series = seriesRef.current;
-    if (!series) return;
+    if (!series || modalBuyDate === null || modalBuyIndex === null) return;
 
     const buy = series.candlestick.createPriceLine({
       price: newTrade.buyPrice,
@@ -569,7 +588,7 @@ export default function StockChart({
     });
 
     priceLinesRef.current = { buy, sl, target };
-    setTrade(newTrade);
+    setTrade({ ...newTrade, buyDate: modalBuyDate, buyIndex: modalBuyIndex });
     setBuyModalOpen(false);
   };
 

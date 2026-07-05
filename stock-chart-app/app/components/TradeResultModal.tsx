@@ -44,8 +44,18 @@ export default function TradeResultModal({ result, onNextStock }: TradeResultMod
             <span>₹{formatRupees(result.hitPrice)}</span>
           </div>
           <div className="flex justify-between">
-            <span className="text-zinc-500">Date</span>
-            <span>{result.date}</span>
+            <span className="text-zinc-500">Buy date</span>
+            <span>{result.buyDate}</span>
+          </div>
+          <div className="flex justify-between">
+            <span className="text-zinc-500">Sell date</span>
+            <span>{result.sellDate}</span>
+          </div>
+          <div className="flex justify-between">
+            <span className="text-zinc-500">Days held</span>
+            <span>
+              {result.daysHeld} day{result.daysHeld === 1 ? "" : "s"}
+            </span>
           </div>
           <div className="flex justify-between">
             <span className="text-zinc-500">{isNeutral ? "Unrealized P&L" : "Realized P&L"}</span>
